@@ -1,201 +1,160 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Transferencia P2P de archivos</title>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transferencia P2P de Archivos</title>
   <style>
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-
     body {
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: #f5f7fb;
-      color: #1f2937;
-      max-width: 680px;
-      margin: 40px auto;
-      padding: 0 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
     }
-
+    .container {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 30px;
+      max-width: 500px;
+      width: 100%;
+    }
     h1 {
-      font-size: 1.8rem;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+      text-align: center;
+    }
+    .section {
       margin-bottom: 20px;
     }
-
-    .card {
-      background: #ffffff;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 20px;
-      margin-bottom: 18px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    }
-
-    h2 {
-      margin-top: 0;
-      font-size: 1.15rem;
-    }
-
-    label {
-      display: block;
+    .section-title {
       font-weight: 600;
-      margin-bottom: 6px;
+      margin-bottom: 10px;
     }
-
-    input[type="text"],
-    input[type="file"] {
+    textarea {
       width: 100%;
       padding: 10px;
-      border: 1px solid #d1d5db;
+      border: 1px solid #ddd;
       border-radius: 8px;
-      font-size: 1rem;
-      background: #fff;
+      margin-bottom: 10px;
+      font-family: monospace;
+      resize: none;
     }
-
     button {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 10px 16px;
-      font-size: 1rem;
-      font-weight: 600;
-      color: #ffffff;
-      background: #2563eb;
+      background: #007aff;
+      color: #fff;
       border: none;
+      padding: 10px 20px;
       border-radius: 8px;
+      font-weight: 500;
       cursor: pointer;
-      transition: background 0.15s ease;
+      width: 100%;
+      transition: opacity 0.2s;
     }
-
-    button:hover:not(:disabled) {
-      background: #1d4ed8;
+    button:hover {
+      opacity: 0.9;
     }
-
     button:disabled {
-      background: #9ca3af;
+      background: #ccc;
       cursor: not-allowed;
     }
-
-    .id-box {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+    input[type="file"] {
+      margin-bottom: 10px;
     }
-
-    #myId {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      background: #eef2ff;
-      border: 1px dashed #93c5fd;
-      border-radius: 8px;
-      padding: 8px 12px;
-      word-break: break-all;
-    }
-
-    #copyIdBtn {
-      margin-top: 0;
-      background: #6b7280;
-    }
-
-    #copyIdBtn:hover:not(:disabled) {
-      background: #4b5563;
-    }
-
-    #status {
-      font-weight: 600;
-      margin-top: 10px;
-    }
-
-    progress {
-      width: 100%;
-      height: 18px;
-      margin-top: 12px;
-      accent-color: #2563eb;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    #downloadLink {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 10px 16px;
-      background: #16a34a;
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 600;
-    }
-
-    #downloadLink:hover {
-      background: #15803d;
-    }
-
-    .note {
+    .status {
       font-size: 0.9rem;
-      color: #6b7280;
+      color: #666;
       margin-top: 10px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <h1>Transferencia P2P de archivos</h1>
-
-  <section class="card">
-    <h2>Tu ID de conexión</h2>
-
-    <div class="id-box">
-      <span id="myId">Conectando...</span>
-      <button id="copyIdBtn" disabled>Copiar</button>
+  <div class="container">
+    <h1>🔗 Transferencia P2P</h1>
+    
+    <div class="section">
+      <div class="section-title">1. Crear conexión</div>
+      <button id="create">Generar Oferta</button>
+      <textarea id="offer" placeholder="La oferta aparecerá aquí" rows="4"></textarea>
     </div>
-
-    <p class="note">
-      Comparte este ID únicamente con la persona que recibirá el archivo.
-      La transferencia se realiza directamente entre navegadores mediante WebRTC.
-    </p>
-  </section>
-
-  <section class="card">
-    <h2>Conectarse a otro dispositivo</h2>
-
-    <label for="remoteId">ID del receptor</label>
-    <input
-      id="remoteId"
-      type="text"
-      placeholder="Pega aquí el ID mostrado en el otro dispositivo"
-      autocomplete="off"
-    />
-
-    <button id="connectBtn">Conectar</button>
-
-    <p id="status">Sin conexión.</p>
-  </section>
-
-  <section class="card">
-    <h2>Enviar archivo</h2>
-
-    <label for="fileInput">Selecciona un archivo</label>
-    <input id="fileInput" type="file" />
-
-    <button id="sendBtn" disabled>Enviar archivo</button>
-
-    <progress id="sendProgress" value="0" max="100"></progress>
-    <p id="sendInfo" class="note">Ningún archivo seleccionado.</p>
-  </section>
-
-  <section class="card">
-    <h2>Recibir archivo</h2>
-
-    <p id="receiveInfo">Esperando conexión y archivo...</p>
-
-    <progress id="receiveProgress" value="0" max="100"></progress>
-
-    <a id="downloadLink" class="hidden" href="#">Descargar archivo</a>
-  </section>
-
-  <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+    
+    <div class="section">
+      <div class="section-title">2. Conectar</div>
+      <textarea id="remoteOffer" placeholder="Pega la oferta aquí" rows="4"></textarea>
+      <button id="connect">Conectar</button>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">3. Enviar Archivo</div>
+      <input type="file" id="file">
+      <button id="send" disabled>Enviar Archivo</button>
+      <div id="status" class="status">Esperando conexión...</div>
+    </div>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
+```
+
+app.js
+```
+let peer;
+let connectionEstablished = false;
+
+document.getElementById('create').onclick = () => {
+  peer = new SimplePeer({ initiator: true });
+  peer.on('signal', data => {
+    document.getElementById('offer').value = JSON.stringify(data);
+  });
+  setupPeerEvents();
+};
+
+document.getElementById('connect').onclick = () => {
+  const offer = JSON.parse(document.getElementById('remoteOffer').value);
+  peer = new SimplePeer();
+  peer.signal(offer);
+  setupPeerEvents();
+};
+
+function setupPeerEvents() {
+  peer.on('connect', () => {
+    connectionEstablished = true;
+    document.getElementById('status').textContent = 'Conectado! ✅';
+    document.getElementById('send').disabled = false;
+  });
+  
+  peer.on('data', data => {
+    const blob = new Blob([data]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'archivo_recibido';
+    a.click();
+  });
+  
+  document.getElementById('send').onclick = () => {
+    const file = document.getElementById('file').files[0];
+    if (file && connectionEstablished) {
+      document.getElementById('status').textContent = 'Enviando...';
+      const reader = new FileReader();
+      reader.onload = () => {
+        peer.send(reader.result);
+        document.getElementById('status').textContent = 'Enviado! ✅';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  };
+}
