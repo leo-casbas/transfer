@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compartir Archivos P2P - Leo y Casbas</title>
-    <!-- Cargamos PeerJS desde un CDN rápido y estable -->
+    <title>Compartir Archivos P2P - Fijo</title>
+    <!-- Cargamos PeerJS desde un CDN estable -->
     <script src="https://jsdelivr.net"></script>
     <style>
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; text-align: center; background-color: #f4f7f6; }
@@ -25,12 +25,14 @@
 
     <h1>Transferencia P2P: Leo a Casbas</h1>
     
+    <!-- Paso 1: Selección de rol -->
     <div class="box">
         <h3>Paso 1: Selecciona el rol de esta PC</h3>
         <button class="setup-btn" onclick="configurarRol('envia')">Configurar como PC Emisora (leo1234)</button>
         <button class="setup-btn" style="background-color: #28a745;" onclick="configurarRol('recibe')">Configurar como PC Receptora (casbas1234)</button>
     </div>
 
+    <!-- Panel de Identificación -->
     <div class="box">
         <div id="role-tag" class="role-badge" style="display:none;"></div>
         <h3>Tu Identificador de Conexión</h3>
@@ -38,6 +40,7 @@
         <div id="error-log" class="error-msg"></div>
     </div>
 
+    <!-- Acciones según rol -->
     <div id="panel-control" class="box" style="display: none;">
         <h3>Acciones</h3>
         <div id="ui-emisor" style="display: none;">
@@ -51,6 +54,7 @@
         </div>
     </div>
 
+    <!-- Estado de la red -->
     <div class="box">
         <h3>Estado de la Red</h3>
         <div id="status" class="status">Esperando que definas el rol del equipo...</div>
@@ -74,14 +78,11 @@
         const sendBtn = document.getElementById('send-btn');
         const downloadLink = document.getElementById('downloadLink');
 
-        // Autodetección automática por URL por conveniencia (?rol=envia o ?rol=recibe)
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('rol')) {
-            configurarRol(urlParams.get('rol'));
-        }
-
         function configurarRol(tipo) {
-            if (peer) { peer.destroy(); }
+            // Limpieza previa si se cambia de rol en caliente
+            if (peer) { 
+                try { peer.destroy(); } catch(e) {} 
+            }
             
             errorLog.innerText = "";
             downloadLink.style.display = "none";
@@ -96,7 +97,7 @@
                 myIdDisplay.innerText = miIdFijo;
                 uiEmisor.style.display = "block";
                 uiReceptor.style.display = "none";
-                statusDisplay.innerText = "Inicializando puente de red seguro...";
+                statusDisplay.innerText = "Conectando al servidor P2P como Emisor...";
                 inicializarPeerP2P();
             } else if (tipo === 'recibe') {
                 miIdFijo = 'casbas1234';
@@ -107,15 +108,15 @@
                 myIdDisplay.innerText = miIdFijo;
                 uiEmisor.style.display = "none";
                 uiReceptor.style.display = "block";
-                statusDisplay.innerText = "Inicializando puente de red seguro...";
+                statusDisplay.innerText = "Conectando al servidor P2P como Receptor...";
                 inicializarPeerP2P();
             }
         }
 
         function inicializarPeerP2P() {
-            // SOLUCIÓN: Agregamos servidores TURN públicos que sirven de relé si los routers se bloquean mutuamente
+            // Inicialización limpia de PeerJS con servidores STUN/TURN de respaldo contra bloqueos
             peer = new Peer(miIdFijo, {
-                host: '0.peerjs.com',
+                host: '://peerjs.com',
                 port: 443,
                 path: '/',
                 secure: true,
@@ -123,14 +124,8 @@
                     'iceServers': [
                         { urls: 'stun:://google.com' },
                         { urls: 'stun:://google.com' },
-                        // Credenciales públicas de relé TURN de la comunidad
                         {
                             urls: 'turn:openrelay.metered.ca:443',
-                            username: 'openrelayproject',
-                            credential: 'openrelayproject'
-                        },
-                        {
-                            urls: 'turn:openrelay.metered.ca:80',
                             username: 'openrelayproject',
                             credential: 'openrelayproject'
                         }
@@ -141,53 +136,55 @@
 
             peer.on('open', (id) => {
                 if (miIdFijo === 'leo1234') {
-                    statusDisplay.innerText = "Conectado. Carga un archivo y presiona 'Enviar'.";
+                    statusDisplay.innerText = "Conectado de forma segura. Selecciona un archivo y presiona 'Enviar'.";
                 } else {
-                    statusDisplay.innerText = "Conectado. Esperando la transmisión de leo1234...";
+                    statusDisplay.innerText = "Conectado de forma segura. Esperando a que leo1234 inicie el envío...";
                 }
             });
 
             peer.on('error', (err) => {
-                console.error("Detalle técnico de red:", err);
+                console.error("Error detectado en PeerJS:", err);
                 if (err.type === 'unavailable-id') {
-                    errorLog.innerText = `El identificador "${miIdFijo}" ya está activo. Si tienes otra pestaña abierta con este link, ciérrala.`;
+                    errorLog.innerText = `El ID "${miIdFijo}" ya está activo en otra ventana. Cierra las demás pestañas abiertas.`;
                 } else {
-                    errorLog.innerText = `Error detectado: [${err.type}]. Intenta recargar la página.`;
+                    errorLog.innerText = `Aviso de red: [${err.type}]. Intenta refrescar la página.`;
                 }
-                statusDisplay.innerText = "Desconectado temporalmente.";
+                statusDisplay.innerText = "Desconectado.";
             });
 
+            // Escucha activa de conexiones entrantes (Rol casbas1234)
             peer.on('connection', (connection) => {
                 conn = connection;
                 setupConnectionHandlers();
             });
         }
 
+        // Evento de envío de archivos (Rol leo1234)
         sendBtn.addEventListener('click', () => {
-            if (fileInput.files.length === 0) {
+            if (!fileInput.files || fileInput.files.length === 0) {
                 alert("Por favor, selecciona un archivo primero.");
                 return;
             }
             
-            statusDisplay.innerText = `Abriendo paso hacia casbas1234...`;
+            statusDisplay.innerText = "Buscando enlace directo con casbas1234...";
             conn = peer.connect(idDestino);
             
             conn.on('open', () => {
                 setupConnectionHandlers();
-                setTimeout(enviarArchivo, 400);
+                setTimeout(enviarArchivo, 300);
             });
 
             conn.on('error', (err) => {
-                errorLog.innerText = "No se pudo enlazar. Asegúrate de que la otra PC tenga activa la opción de Receptora.";
+                errorLog.innerText = "No se pudo enlazar. Verifica que la otra PC tenga activa la opción Receptora.";
             });
         });
 
         function setupConnectionHandlers() {
-            statusDisplay.innerText = `¡Túnel establecido exitosamente con: ${conn.peer}!`;
+            statusDisplay.innerText = `¡Conexión establecida con el par: ${conn.peer}!`;
             
             conn.on('data', (data) => {
                 if (data.file && data.filename) {
-                    statusDisplay.innerText = `¡Archivo recibido!`;
+                    statusDisplay.innerText = "¡Archivo recibido!";
                     
                     const blob = new Blob([data.file]);
                     const url = URL.createObjectURL(blob);
@@ -200,19 +197,23 @@
             });
 
             conn.on('close', () => {
-                statusDisplay.innerText = "Conexión finalizada.";
+                statusDisplay.innerText = "La conexión se ha cerrado.";
                 conn = null;
             });
         }
 
         function enviarArchivo() {
-            const file = fileInput.files;
-            statusDisplay.innerText = `Transmitiendo "${file.name}" mediante túnel seguro...`;
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            statusDisplay.innerText = `Transmitiendo "${file.name}" punto a punto...`;
 
             const reader = new FileReader();
             reader.onload = function(event) {
-                if(conn && conn.open) {
+                if (conn && conn.open) {
                     conn.send({
                         file: event.target.result,
                         filename: file.name
                     });
+                    statusDisplay.innerText = `¡"${file.name}" se envió correctamente a casbas1234!`;
+                } else {
