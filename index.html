@@ -3,187 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compartir Archivos P2P Directo (Sin Servidor)</title>
+    <title>Compartir Archivos P2P - Fijo</title>
+    <!-- Cargamos PeerJS desde un CDN rápido y estable -->
+    <script src="https://jsdelivr.net"></script>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 30px auto; padding: 20px; text-align: center; background-color: #f4f7f6; }
-        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: left; }
-        h1, h3 { text-align: center; margin-top: 0; }
-        textarea { width: 100%; height: 80px; box-sizing: border-box; resize: none; font-family: monospace; font-size: 11px; margin: 5px 0; }
-        input[type="file"], button { width: 100%; padding: 12px; margin: 10px 0; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; }
-        button { background-color: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; }
-        button:hover { background-color: #218838; }
-        .btn-connect { background-color: #007bff; }
-        .btn-connect:hover { background-color: #0056b3; }
-        .status { font-weight: bold; text-align: center; color: #555; margin: 15px 0; padding: 10px; background: #e9ecef; border-radius: 4px; }
-        #downloadLink { display: none; text-align: center; margin-top: 15px; font-weight: bold; color: #28a745; text-decoration: none; }
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; text-align: center; background-color: #f4f7f6; }
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, button { padding: 12px; margin: 10px 0; width: 100%; max-width: 400px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; font-size: 15px; }
+        button:hover { background-color: #0056b3; }
+        .status { font-weight: bold; color: #333; margin: 15px 0; padding: 12px; background-color: #e9ecef; border-radius: 4px; }
+        #downloadLink { display: none; margin-top: 15px; font-weight: bold; color: #28a745; text-decoration: none; font-size: 16px; }
+        .error-msg { color: #dc3545; font-weight: bold; margin-top: 10px; }
+        .role-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-bottom: 10px; color: white; }
+        .sender-theme { background-color: #007bff; }
+        .receiver-theme { background-color: #28a745; }
+        .setup-btn { background-color: #6c757d; font-size: 13px; padding: 6px; width: auto; margin: 5px; }
     </style>
 </head>
 <body>
 
-    <h1>Transferencia P2P Manual</h1>
-    <div id="status" class="status">Paso 1: Elige si vas a Crear la conexión o a Unirte.</div>
-
-    <!-- PASO 1: CREAR INVITACIÓN (PC 1) -->
+    <h1>Transferencia P2P: Leo a Casbas</h1>
+    
+    <!-- Botones de selección rápida -->
     <div class="box">
-        <h3>Opción A: Iniciar Conexión (PC 1)</h3>
-        <button id="btn-init">1. Generar Invitación</button>
-        <label>Copia este código y envíaselo a la otra PC:</label>
-        <textarea id="txt-local-offer" readonly placeholder="Haz clic en el botón de arriba..."></textarea>
-        
-        <label style="margin-top: 10px; display:block;">3. Pega aquí la Respuesta que te envíe la otra PC:</label>
-        <textarea id="txt-remote-answer" placeholder="Pega el código de respuesta aquí..."></textarea>
-        <button id="btn-accept-answer" class="btn-connect">4. Completar Conexión</button>
+        <h3>Paso 1: Selecciona el rol de esta PC</h3>
+        <button class="setup-btn" onclick="configurarRol('envia')">Configurar como PC Emisora (leo1234)</button>
+        <button class="setup-btn" style="background-color: #28a745;" onclick="configurarRol('recibe')">Configurar como PC Receptora (casbas1234)</button>
     </div>
 
-    <!-- PASO 2: UNIRSE A INVITACIÓN (PC 2) -->
+    <!-- Panel de Identificación -->
     <div class="box">
-        <h3>Opción B: Unirse a Conexión (PC 2)</h3>
-        <label>1. Pega el código de Invitación que recibiste de la PC 1:</label>
-        <textarea id="txt-remote-offer" placeholder="Pega el código de invitación aquí..."></textarea>
-        <button id="btn-join" class="btn-connect">2. Procesar y Generar Respuesta</button>
-        
-        <label style="margin-top: 10px; display:block;">3. Copia este código de Respuesta y envíaselo a la PC 1:</label>
-        <textarea id="txt-local-answer" readonly placeholder="Aparecerá tu respuesta aquí..."></textarea>
+        <div id="role-tag" class="role-badge" style="display:none;"></div>
+        <h3>Tu Identificador de Conexión</h3>
+        <div id="my-id" style="font-size: 1.8em; color: #333; font-weight: bold;">Selecciona un rol arriba...</div>
+        <div id="error-log" class="error-msg"></div>
     </div>
 
-    <!-- PASO 3: COMPARTIR ARCHIVOS -->
-    <div class="box" style="border: 2px dashed #007bff;">
-        <h3>3. Enviar Archivo (Una vez conectados)</h3>
-        <input type="file" id="file-input">
-        <button id="btn-send" style="background-color: #007bff;">Enviar Archivo</button>
+    <!-- Panel de Control Dinámico -->
+    <div id="panel-control" class="box" style="display: none;">
+        <h3 id="panel-title">Acciones</h3>
+        <div id="ui-emisor" style="display: none;">
+            <p>El archivo se enviará directamente a la PC receptora (<b>casbas1234</b>):</p>
+            <input type="file" id="file-input">
+            <br>
+            <button id="send-btn">Enviar Archivo Directo</button>
+        </div>
+        <div id="ui-receptor" style="display: none;">
+            <p>Espera en esta pantalla a que la PC emisora (<b>leo1234</b>) te envíe un documento.</p>
+        </div>
+    </div>
+
+    <!-- Estado del Canal -->
+    <div class="box">
+        <h3>Estado de la Red</h3>
+        <div id="status" class="status">Esperando que definas el rol del equipo...</div>
         <center><a id="downloadLink" href="#" download>¡Descargar Archivo Recibido!</a></center>
     </div>
 
     <script>
-        // Configuración básica usando los servidores públicos de Google para validar las IPs locales (STUN)
-        const config = { iceServers: [{ urls: 'stun:://google.com' }] };
-        let pc = new RTCPeerConnection(config);
-        let dataChannel = null;
+        let peer = null;
+        let conn = null;
+        let miIdFijo = "";
+        let idDestino = "";
 
-        // Elementos del DOM
-        const status = document.getElementById('status');
+        const myIdDisplay = document.getElementById('my-id');
+        const statusDisplay = document.getElementById('status');
+        const errorLog = document.getElementById('error-log');
+        const roleTag = document.getElementById('role-tag');
+        const panelControl = document.getElementById('panel-control');
+        const uiEmisor = document.getElementById('ui-emisor');
+        const uiReceptor = document.getElementById('ui-receptor');
         const fileInput = document.getElementById('file-input');
+        const sendBtn = document.getElementById('send-btn');
         const downloadLink = document.getElementById('downloadLink');
 
-        // --- FLUJO PC 1: INICIADOR ---
-        document.getElementById('btn-init').addEventListener('click', async () => {
-            status.innerText = "Generando invitación...";
-            dataChannel = pc.createDataChannel("fileTransfer");
-            setupDataChannelHandlers(dataChannel);
-
-            // Recopilar candidatos de red para la conexión directa
-            pc.onicecandidate = (e) => {
-                if (!e.candidate) {
-                    // Cuando termina de recopilar, mostramos el código completo en el cuadro de texto
-                    document.getElementById('txt-local-offer').value = btoa(JSON.stringify(pc.localDescription));
-                    status.innerText = "Invitación lista. Cópiala y envíala a la otra PC.";
-                }
-            };
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-        });
-
-        document.getElementById('btn-accept-answer').addEventListener('click', async () => {
-            const answerStr = document.getElementById('txt-remote-answer').value.trim();
-            if (!answerStr) return alert("Pega el código de respuesta de la PC 2.");
-            
-            try {
-                const answer = JSON.parse(atob(answerStr));
-                await pc.setRemoteDescription(new RTCSessionDescription(answer));
-                status.innerText = "Procesando respuesta final...";
-            } catch (err) {
-                alert("Código de respuesta inválido.");
-            }
-        });
-
-        // --- FLUJO PC 2: RECEPTOR ---
-        document.getElementById('btn-join').addEventListener('click', async () => {
-            const offerStr = document.getElementById('txt-remote-offer').value.trim();
-            if (!offerStr) return alert("Pega el código de invitación de la PC 1.");
-
-            try {
-                const offer = JSON.parse(atob(offerStr));
-                
-                pc.ondatachannel = (e) => {
-                    dataChannel = e.channel;
-                    setupDataChannelHandlers(dataChannel);
-                };
-
-                pc.onicecandidate = (e) => {
-                    if (!e.candidate) {
-                        document.getElementById('txt-local-answer').value = btoa(JSON.stringify(pc.localDescription));
-                        status.innerText = "Respuesta generada. Cópiala y devuélvesela a la PC 1.";
-                    }
-                };
-
-                await pc.setRemoteDescription(new RTCSessionDescription(offer));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-            } catch (err) {
-                alert("Código de invitación inválido.");
-            }
-        });
-
-        // --- MANEJO DEL CANAL DE DATOS P2P ---
-        function setupDataChannelHandlers(channel) {
-            channel.onopen = () => status.innerText = "¡CONECTADOS EXITOSAMENTE de PC a PC!";
-            channel.onclose = () => status.innerText = "Conexión cerrada.";
-            
-            channel.onmessage = (e) => {
-                try {
-                    const data = JSON.parse(e.data);
-                    if (data.file && data.filename) {
-                        status.innerText = `¡Archivo recibido!: ${data.filename}`;
-                        
-                        // Convertir los datos en base64 de vuelta a un archivo descargable
-                        const byteCharacters = atob(data.file);
-                        const byteNumbers = new Array(byteCharacters.length);
-                        for (let i = 0; i < byteCharacters.length; i++) {
-                            byteNumbers[i] = byteCharacters.charCodeAt(i);
-                        }
-                        const byteArray = new Uint8Array(byteNumbers);
-                        const blob = new Blob([byteArray]);
-                        
-                        const url = URL.createObjectURL(blob);
-                        downloadLink.href = url;
-                        downloadLink.download = data.filename;
-                        downloadLink.innerText = `Descargar ${data.filename}`;
-                        downloadLink.style.display = "block";
-                    }
-                } catch (err) {
-                    console.error("Error al procesar el archivo recibido", err);
-                }
-            };
+        // Lee si hay un rol predefinido en la URL por comodidad (ej: ?rol=envia)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('rol')) {
+            configurarRol(urlParams.get('rol'));
         }
 
-        // --- ENVIAR ARCHIVO ---
-        document.getElementById('btn-send').addEventListener('click', () => {
-            if (!dataChannel || dataChannel.readyState !== "open") {
-                return alert("Las PCs aún no están conectadas.");
-            }
-            const files = fileInput.files;
-            if (files.length === 0) return alert("Selecciona un archivo.");
+        function configurarRol(tipo) {
+            // Si ya existía una conexión abierta, la cerramos para reiniciar limpios
+            if (peer) { peer.destroy(); }
+            
+            errorLog.innerText = "";
+            downloadLink.style.display = "none";
+            panelControl.style.display = "block";
 
-            const file = files[0];
-            status.innerText = `Enviando "${file.name}"...`;
+            if (tipo === 'envia') {
+                miIdFijo = 'leo1234';
+                idDestino = 'casbas1234';
+                
+                roleTag.innerText = "PC EMISORA";
+                roleTag.className = "role-badge sender-theme";
+                roleTag.style.display = "inline-block";
+                myIdDisplay.innerText = miIdFijo;
+                
+                uiEmisor.style.display = "block";
+                uiReceptor.style.display = "none";
+                statusDisplay.innerText = "Conectando al servidor...";
+                
+                inicializarPeerP2P();
+            } else if (tipo === 'recibe') {
+                miIdFijo = 'casbas1234';
+                idDestino = 'leo1234';
+                
+                roleTag.innerText = "PC RECEPTORA";
+                roleTag.className = "role-badge receiver-theme";
+                roleTag.style.display = "inline-block";
+                myIdDisplay.innerText = miIdFijo;
+                
+                uiEmisor.style.display = "none";
+                uiReceptor.style.display = "block";
+                statusDisplay.innerText = "Conectando al servidor...";
+                
+                inicializarPeerP2P();
+            }
+        }
+
+        function inicializarPeerP2P() {
+            peer = new Peer(miIdFijo, {
+                host: '://peerjs.com',
+                port: 443,
+                path: '/',
+                secure: true,
+                debug: 1
+            });
+
+            peer.on('open', (id) => {
+                if (miIdFijo === 'leo1234') {
+                    statusDisplay.innerText = "Listo. Carga un archivo y presiona 'Enviar' para transmitir a casbas1234.";
+                } else {
+                    statusDisplay.innerText = "Listo. Esperando la transmisión de leo1234...";
+                }
+            });
+
+            peer.on('error', (err) => {
+                console.error("Error PeerJS:", err);
+                if (err.type === 'unavailable-id') {
+                    errorLog.innerText = `El ID "${miIdFijo}" ya está en uso. Cierra otras pestañas o ventanas abiertas con esta misma función.`;
+                } else {
+                    errorLog.innerText = `Error de red local o bloqueo de Firewall: [${err.type}]`;
+                }
+                statusDisplay.innerText = "Red desconectada.";
+            });
+
+            // ESCUCHAR (Para la PC receptora casbas1234)
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnectionHandlers();
+            });
+        }
+
+        // ENVIAR (Para la PC emisora leo1234)
+        sendBtn.addEventListener('click', () => {
+            if (fileInput.files.length === 0) {
+                alert("Por favor, selecciona un archivo primero.");
+                return;
+            }
+            
+            statusDisplay.innerText = `Buscando a casbas1234 en Internet...`;
+            conn = peer.connect(idDestino);
+            
+            conn.on('open', () => {
+                setupConnectionHandlers();
+                setTimeout(enviarArchivo, 300);
+            });
+
+            conn.on('error', (err) => {
+                errorLog.innerText = "No se pudo conectar con la PC receptora. ¿Está abierta con el rol correcto?";
+            });
+        });
+
+        function setupConnectionHandlers() {
+            statusDisplay.innerText = `Túnel WebRTC conectado de forma segura con: ${conn.peer}`;
+            
+            conn.on('data', (data) => {
+                if (data.file && data.filename) {
+                    statusDisplay.innerText = `¡Archivo recibido exitosamente!`;
+                    
+                    const blob = new Blob([data.file]);
+                    const url = URL.createObjectURL(blob);
+                    
+                    downloadLink.href = url;
+                    downloadLink.download = data.filename;
+                    downloadLink.innerText = `💾 Guardar ${data.filename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
+                    downloadLink.style.display = "inline-block";
+                }
+            });
+
+            conn.on('close', () => {
+                statusDisplay.innerText = "La conexión P2P se ha cerrado de forma remota.";
+                conn = null;
+            });
+        }
+
+        function enviarArchivo() {
+            const file = fileInput.files[0];
+            statusDisplay.innerText = `Transmitiendo "${file.name}" punto a punto...`;
 
             const reader = new FileReader();
             reader.onload = function(event) {
-                // Convertimos el archivo a Base64 para enviarlo de forma segura por la cadena de texto nativa de WebRTC
-                const base64File = btoa(
-                    new Uint8Array(event.target.result)
-                        .reduce((data, byte) => data + String.fromCharCode(byte), '')
-                );
-
-                dataChannel.send(JSON.stringify({
-                    file: base64File,
-                    filename: file.name
-                }));
-                statusDisplay = status.innerText = `¡"${file.name}" enviado con éxito!`;
+                if(conn && conn.open) {
+                    conn.send({
+                        file: event.target.result,
+                        filename: file.name
+                    });
+                    statusDisplay.innerText = `¡"${file.name}" se envió con éxito a casbas1234!`;
+                } else {
+                    statusDisplay.innerText = "Error: El destinatario cerró la pestaña antes del envío.";
+                }
             };
             reader.readAsArrayBuffer(file);
-        });
+        }
     </script>
 </body>
 </html>
