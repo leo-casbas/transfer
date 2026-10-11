@@ -39,7 +39,7 @@
     </div>
 
     <div id="panel-control" class="box" style="display: none;">
-        <h3 id="panel-title">Acciones</h3>
+        <h3>Acciones</h3>
         <div id="ui-emisor" style="display: none;">
             <p>El archivo se enviará directamente a la PC receptora (<b>casbas1234</b>):</p>
             <input type="file" id="file-input">
@@ -74,7 +74,7 @@
         const sendBtn = document.getElementById('send-btn');
         const downloadLink = document.getElementById('downloadLink');
 
-        // Autodetección por URL si se requiere
+        // Autodetección automática por URL por conveniencia (?rol=envia o ?rol=recibe)
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('rol')) {
             configurarRol(urlParams.get('rol'));
@@ -96,7 +96,7 @@
                 myIdDisplay.innerText = miIdFijo;
                 uiEmisor.style.display = "block";
                 uiReceptor.style.display = "none";
-                statusDisplay.innerText = "Estableciendo conexión con el servidor de respaldo...";
+                statusDisplay.innerText = "Inicializando puente de red seguro...";
                 inicializarPeerP2P();
             } else if (tipo === 'recibe') {
                 miIdFijo = 'casbas1234';
@@ -107,15 +107,15 @@
                 myIdDisplay.innerText = miIdFijo;
                 uiEmisor.style.display = "none";
                 uiReceptor.style.display = "block";
-                statusDisplay.innerText = "Estableciendo conexión con el servidor de respaldo...";
+                statusDisplay.innerText = "Inicializando puente de red seguro...";
                 inicializarPeerP2P();
             }
         }
 
         function inicializarPeerP2P() {
-            // SOLUClÓN: Añadimos servidores STUN globales alternativos para saltar bloqueos de red
+            // SOLUCIÓN: Agregamos servidores TURN públicos que sirven de relé si los routers se bloquean mutuamente
             peer = new Peer(miIdFijo, {
-                host: '://peerjs.com',
+                host: '0.peerjs.com',
                 port: 443,
                 path: '/',
                 secure: true,
@@ -123,7 +123,17 @@
                     'iceServers': [
                         { urls: 'stun:://google.com' },
                         { urls: 'stun:://google.com' },
-                        { urls: 'stun:stun.metered.ca:443' }
+                        // Credenciales públicas de relé TURN de la comunidad
+                        {
+                            urls: 'turn:openrelay.metered.ca:443',
+                            username: 'openrelayproject',
+                            credential: 'openrelayproject'
+                        },
+                        {
+                            urls: 'turn:openrelay.metered.ca:80',
+                            username: 'openrelayproject',
+                            credential: 'openrelayproject'
+                        }
                     ]
                 },
                 debug: 1
@@ -131,20 +141,20 @@
 
             peer.on('open', (id) => {
                 if (miIdFijo === 'leo1234') {
-                    statusDisplay.innerText = "Conectado. Selecciona un archivo y presiona 'Enviar'.";
+                    statusDisplay.innerText = "Conectado. Carga un archivo y presiona 'Enviar'.";
                 } else {
-                    statusDisplay.innerText = "Conectado. Esperando de forma segura a que leo1234 envíe algo...";
+                    statusDisplay.innerText = "Conectado. Esperando la transmisión de leo1234...";
                 }
             });
 
             peer.on('error', (err) => {
-                console.error("Detalle técnico:", err);
+                console.error("Detalle técnico de red:", err);
                 if (err.type === 'unavailable-id') {
-                    errorLog.innerText = `El ID "${miIdFijo}" ya está activo en otra pestaña. Cierra las demás ventanas.`;
+                    errorLog.innerText = `El identificador "${miIdFijo}" ya está activo. Si tienes otra pestaña abierta con este link, ciérrala.`;
                 } else {
-                    errorLog.innerText = `Error de red: [${err.type}]. Intenta recargar o verificar si tu firewall bloquea WebRTC.`;
+                    errorLog.innerText = `Error detectado: [${err.type}]. Intenta recargar la página.`;
                 }
-                statusDisplay.innerText = "Desconectado.";
+                statusDisplay.innerText = "Desconectado temporalmente.";
             });
 
             peer.on('connection', (connection) => {
@@ -159,25 +169,25 @@
                 return;
             }
             
-            statusDisplay.innerText = `Buscando enlace directo con casbas1234...`;
+            statusDisplay.innerText = `Abriendo paso hacia casbas1234...`;
             conn = peer.connect(idDestino);
             
             conn.on('open', () => {
                 setupConnectionHandlers();
-                setTimeout(enviarArchivo, 300);
+                setTimeout(enviarArchivo, 400);
             });
 
             conn.on('error', (err) => {
-                errorLog.innerText = "No se pudo conectar. Asegúrate de que la PC receptora tenga la web abierta.";
+                errorLog.innerText = "No se pudo enlazar. Asegúrate de que la otra PC tenga activa la opción de Receptora.";
             });
         });
 
         function setupConnectionHandlers() {
-            statusDisplay.innerText = `¡Canal P2P establecido con éxito!: ${conn.peer}`;
+            statusDisplay.innerText = `¡Túnel establecido exitosamente con: ${conn.peer}!`;
             
             conn.on('data', (data) => {
                 if (data.file && data.filename) {
-                    statusDisplay.innerText = `¡Archivo recibido exitosamente!`;
+                    statusDisplay.innerText = `¡Archivo recibido!`;
                     
                     const blob = new Blob([data.file]);
                     const url = URL.createObjectURL(blob);
@@ -196,9 +206,8 @@
         }
 
         function enviarArchivo() {
-            const file = fileInput.files[0];
-            if (!file) return;
-            statusDisplay.innerText = `Enviando "${file.name}" punto a punto...`;
+            const file = fileInput.files;
+            statusDisplay.innerText = `Transmitiendo "${file.name}" mediante túnel seguro...`;
 
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -207,13 +216,3 @@
                         file: event.target.result,
                         filename: file.name
                     });
-                    statusDisplay.innerText = `¡"${file.name}" enviado correctamente a casbas1234!`;
-                } else {
-                    statusDisplay.innerText = "Error: La conexión se cerró antes del envío.";
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-    </script>
-</body>
-</html>
