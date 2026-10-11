@@ -4,30 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compartir Archivos P2P Directo</title>
-    <!-- Cargamos la librería PeerJS para manejar las conexiones WebRTC de forma simple -->
-    <script src="https://unpkg.com"></script>
+    <!-- Usamos un CDN alternativo y la versión más estable de PeerJS -->
+    <script src="https://cloudflare.com"></script>
     <style>
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; text-align: center; background-color: #f4f7f6; }
         .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input, button { padding: 10px; margin: 10px 0; width: 80px%; max-width: 100%; border: 1px solid #ccc; border-radius: 4px; }
-        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; width: auto; }
+        input, button { padding: 10px; margin: 10px 0; width: 100%; max-width: 400px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #0056b3; }
         .status { font-weight: bold; color: #555; margin: 15px 0; }
-        #downloadLink { display: none; margin-top: 15px; font-weight: bold; }
+        #downloadLink { display: none; margin-top: 15px; font-weight: bold; color: #28a745; }
+        .error-msg { color: #dc3545; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <h1>Transferencia de Archivos P2P</h1>
     
-    <!-- Sección 1: Tu ID de conexión -->
     <div class="box">
         <h3>1. Tu Identificador de Conexión</h3>
-        <p>Comparte este ID con la otra persona, o pídele el suyo.</p>
-        <div id="my-id" style="font-size: 1.2em; color: #007bff; font-weight: bold;">Cargando ID...</div>
+        <p>Comparte este ID con la otra persona.</p>
+        <div id="my-id" style="font-size: 1.5em; color: #007bff; font-weight: bold;">Cargando ID...</div>
+        <div id="error-log" class="error-msg"></div>
     </div>
 
-    <!-- Sección 2: Conectarse y Enviar -->
     <div class="box">
         <h3>2. Conectar y Enviar Archivo</h3>
         <input type="text" id="peer-id-input" placeholder="Introduce el ID del destinatario">
@@ -37,98 +37,109 @@
         <button id="send-btn">Enviar Archivo</button>
     </div>
 
-    <!-- Sección 3: Estado de la transferencia -->
     <div class="box">
         <h3>Estado del Canal</h3>
-        <div id="status" class="status">Esperando conexiones...</div>
+        <div id="status" class="status">Inicializando PeerJS...</div>
         <a id="downloadLink" href="#" download>¡Descargar Archivo Recibido!</a>
     </div>
 
     <script>
-        // Inicializamos PeerJS. Esto se conecta automáticamente al servidor de señalización gratuito de PeerJS.
-        const peer = new Peer();
+        // Inicializamos PeerJS con configuraciones por defecto explícitas
+        const peer = new Peer(undefined, {
+            debug: 2 // Muestra advertencias y errores en la consola del navegador
+        });
+        
         let conn = null;
 
         const myIdDisplay = document.getElementById('my-id');
         const statusDisplay = document.getElementById('status');
+        const errorLog = document.getElementById('error-log');
         const peerIdInput = document.getElementById('peer-id-input');
         const fileInput = document.getElementById('file-input');
         const sendBtn = document.getElementById('send-btn');
         const downloadLink = document.getElementById('downloadLink');
 
-        // Mostrar tu ID cuando el servidor te lo asigne
+        // EVENTO: El servidor asigna exitosamente un ID único
         peer.on('open', (id) => {
             myIdDisplay.innerText = id;
-            statusDisplay.innerText = "Listo para recibir conexiones directas.";
+            statusDisplay.innerText = "Listo. Esperando conexiones o listo para enviar.";
+            errorLog.innerText = ""; // Limpia cualquier error previo
         });
 
-        // ESCUCHAR: Cuando otra PC se conecta a ti de forma entrante
+        // EVENTO: Captura de errores si el servidor falla o hay bloqueos de red
+        peer.on('error', (err) => {
+            console.error("Error en PeerJS:", err);
+            statusDisplay.innerText = "Error de conexión.";
+            errorLog.innerText = "Error: " + err.type + " - No se pudo conectar al servidor de señalización.";
+            myIdDisplay.innerText = "Error al generar";
+        });
+
+        // ESCUCHAR: Conexiones entrantes
         peer.on('connection', (connection) => {
             conn = connection;
             setupConnectionHandlers();
         });
 
-        // ENVIAR: Cuando tú decides conectarte a la otra PC usando su ID
+        // ENVIAR: Conectarse a otro ID externo
         sendBtn.addEventListener('click', () => {
             const targetId = peerIdInput.value.trim();
             if (!targetId) {
                 alert("Por favor, introduce un ID válido.");
                 return;
             }
-            statusDisplay.innerText = "Conectando con el destinatario...";
+            if (!fileInput.files[0]) {
+                alert("Por favor, selecciona un archivo antes de enviar.");
+                return;
+            }
+            
+            statusDisplay.innerText = "Estableciendo conexión P2P...";
             conn = peer.connect(targetId);
             
             conn.on('open', () => {
                 setupConnectionHandlers();
-                enviarArchivo();
+                // Damos un breve respiro de 500ms para asegurar que el canal de datos esté listo
+                setTimeout(enviarArchivo, 500);
             });
         });
 
-        // Configurar los eventos de la conexión activa (tanto para envío como recepción)
         function setupConnectionHandlers() {
-            statusDisplay.innerText = `Conectado de forma segura con: ${conn.peer}`;
+            statusDisplay.innerText = `Conectado con: ${conn.peer}`;
             
-            // Cuando se reciben datos (el archivo)
             conn.on('data', (data) => {
                 if (data.file && data.filename) {
                     statusDisplay.innerText = `¡Archivo recibido!: ${data.filename}`;
                     
-                    // Convertir los datos recibidos (ArrayBuffer/Blob) en un enlace de descarga local
                     const blob = new Blob([data.file]);
                     const url = URL.createObjectURL(blob);
                     
                     downloadLink.href = url;
                     downloadLink.download = data.filename;
-                    downloadLink.innerText = `Descargar ${data.filename}`;
-                    downloadLink.style.display = "block";
+                    downloadLink.innerText = `Descargar ${data.filename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
+                    downloadLink.style.display = "inline-block";
                 }
             });
 
             conn.on('close', () => {
-                statusDisplay.innerText = "Conexión cerrada.";
+                statusDisplay.innerText = "La conexión se ha cerrado.";
                 conn = null;
             });
         }
 
-        // Función para leer el archivo seleccionado y enviarlo a través del canal WebRTC
         function enviarArchivo() {
             const file = fileInput.files[0];
-            if (!file) {
-                alert("Por favor, selecciona un archivo primero.");
-                return;
-            }
+            statusDisplay.innerText = `Enviando "${file.name}"...`;
 
-            statusDisplay.innerText = `Enviando "${file.name}" de forma directa...`;
-
-            // Usamos FileReader para convertir el archivo a un formato almacenable/enviable (ArrayBuffer)
             const reader = new FileReader();
             reader.onload = function(event) {
-                conn.send({
-                    file: event.target.result,
-                    filename: file.name,
-                    filetype: file.type
-                });
-                statusDisplay.innerText = `¡"${file.name}" enviado con éxito de PC a PC!`;
+                if(conn && conn.open) {
+                    conn.send({
+                        file: event.target.result,
+                        filename: file.name
+                    });
+                    statusDisplay.innerText = `¡"${file.name}" enviado con éxito!`;
+                } else {
+                    statusDisplay.innerText = "Error: La conexión se perdió antes de enviar.";
+                }
             };
             reader.readAsArrayBuffer(file);
         }
