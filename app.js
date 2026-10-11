@@ -1,6 +1,3 @@
-Te lo dejo con los cambios. Fijate si funciona:
-
-```
 const CHUNK_SIZE = 64 * 1024; // 64 KB por fragmento
 const myIdElement = document.getElementById("myId");
 const copyIdBtn = document.getElementById("copyIdBtn");
