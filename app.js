@@ -1,4 +1,4 @@
-const CHUNK_SIZE = 64 * 1024; // 64 KB por fragmento
+const CHUNK_SIZE = 64 * 1024;
 const fixedId = "mi-id-fijo-para-testear";
 const myIdElement = document.getElementById("myId");
 const copyIdBtn = document.getElementById("copyIdBtn");
@@ -34,7 +34,6 @@ function initializePeer() {
   peer.on("open", (id) => {
     console.log("Peer abierto con ID:", id);
     myIdElement.textContent = id;
-    remoteIdInput.value = id;
     copyIdBtn.disabled = false;
     statusElement.textContent = "Esperando conexión...";
   });
@@ -43,17 +42,7 @@ function initializePeer() {
   });
   peer.on("error", (error) => {
     console.error(error);
-    if (error.type === "peer-unavailable") {
-      statusElement.textContent = "No se encontró ese ID. Verifica que el receptor tenga la página abierta.";
-    } else if (error.type === "network") {
-      statusElement.textContent = "Error de red. Revisa tu conexión.";
-    } else {
-      statusElement.textContent = `Error: ${error.type}`;
-    }
-  });
-  peer.on("disconnected", () => {
-    statusElement.textContent = "Desconectado del servidor de señalización. Reintentando...";
-    peer.reconnect();
+    statusElement.textContent = `Error: ${error.type}`;
   });
 }
 
@@ -94,10 +83,6 @@ connectBtn.addEventListener("click", () => {
   const remoteId = remoteIdInput.value.trim();
   if (!remoteId) {
     alert("Introduce el ID del receptor.");
-    return;
-  }
-  if (!peer || !peer.open) {
-    alert("PeerJS aún no está conectado. Espera un momento.");
     return;
   }
   statusElement.textContent = "Conectando...";
@@ -176,8 +161,6 @@ function handleIncomingData(data) {
     receivedBytes = 0;
     receiveProgress.value = 0;
     downloadLink.classList.add("hidden");
-    downloadLink.removeAttribute("href");
-    downloadLink.removeAttribute("download");
     receiveInfo.textContent = `Preparando recepción de ${data.name} — ${formatBytes(data.size)}`;
     return;
   }
@@ -187,7 +170,7 @@ function handleIncomingData(data) {
       URL.revokeObjectURL(lastObjectUrl);
     }
     lastObjectUrl = URL.createObjectURL(blob);
-    downloadLink.href = lastObjectUrlLink;
+    downloadLink.href = lastObjectUrl;
     downloadLink.download = incomingFile.name;
     downloadLink.textContent = `Descargar ${incomingFile.name}`;
     downloadLink.classList.remove("hidden");
