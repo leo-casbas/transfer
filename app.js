@@ -1,4 +1,5 @@
 const CHUNK_SIZE = 64 * 1024; // 64 KB por fragmento
+const fixedId = "mi-id-fijo-para-testear";
 const myIdElement = document.getElementById("myId");
 const copyIdBtn = document.getElementById("copyIdBtn");
 const remoteIdInput = document.getElementById("remoteId");
@@ -29,10 +30,11 @@ function formatBytes(bytes) {
 }
 
 function initializePeer() {
-  peer = new Peer();
+  peer = new Peer(fixedId);
   peer.on("open", (id) => {
+    console.log("Peer abierto con ID:", id);
     myIdElement.textContent = id;
-    remoteIdInput.placeholder = `Pega el ID aquí`;
+    remoteIdInput.value = id;
     copyIdBtn.disabled = false;
     statusElement.textContent = "Esperando conexión...";
   });
@@ -185,7 +187,7 @@ function handleIncomingData(data) {
       URL.revokeObjectURL(lastObjectUrl);
     }
     lastObjectUrl = URL.createObjectURL(blob);
-    downloadLink.href = lastObjectUrl;
+    downloadLink.href = lastObjectUrlLink;
     downloadLink.download = incomingFile.name;
     downloadLink.textContent = `Descargar ${incomingFile.name}`;
     downloadLink.classList.remove("hidden");
