@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compartir Archivos P2P Directo</title>
-    <!-- Usamos un CDN alternativo y la versión más estable de PeerJS -->
-    <script src="https://cloudflare.com"></script>
+    
+    <!-- SOLUCIÓN 1: Cambiamos a la última versión oficial y estable desde jsDelivr -->
+    <script src="https://jsdelivr.net"></script>
+    
     <style>
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; text-align: center; background-color: #f4f7f6; }
         .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
@@ -24,7 +26,8 @@
     <div class="box">
         <h3>1. Tu Identificador de Conexión</h3>
         <p>Comparte este ID con la otra persona.</p>
-        <div id="my-id" style="font-size: 1.5em; color: #007bff; font-weight: bold;">Cargando ID...</div>
+        <!-- Aquí se mostrará tu ID -->
+        <div id="my-id" style="font-size: 1.5em; color: #007bff; font-weight: bold;">Generando ID único...</div>
         <div id="error-log" class="error-msg"></div>
     </div>
 
@@ -39,14 +42,18 @@
 
     <div class="box">
         <h3>Estado del Canal</h3>
-        <div id="status" class="status">Inicializando PeerJS...</div>
+        <div id="status" class="status">Conectando al servidor de señales...</div>
         <a id="downloadLink" href="#" download>¡Descargar Archivo Recibido!</a>
     </div>
 
     <script>
-        // Inicializamos PeerJS con configuraciones por defecto explícitas
-        const peer = new Peer(undefined, {
-            debug: 2 // Muestra advertencias y errores en la consola del navegador
+        // SOLUCIÓN 2: Forzamos los parámetros de red correctos para el servidor público actual de PeerJS
+        const peer = new Peer({
+            host: '://peerjs.com',
+            port: 443,
+            path: '/',
+            secure: true,
+            debug: 1
         });
         
         let conn = null;
@@ -59,75 +66,74 @@
         const sendBtn = document.getElementById('send-btn');
         const downloadLink = document.getElementById('downloadLink');
 
-        // EVENTO: El servidor asigna exitosamente un ID único
+        // Asignación de ID exitosa
         peer.on('open', (id) => {
             myIdDisplay.innerText = id;
-            statusDisplay.innerText = "Listo. Esperando conexiones o listo para enviar.";
-            errorLog.innerText = ""; // Limpia cualquier error previo
+            statusDisplay.innerText = "Listo. Comparte tu ID o introduce el de tu par para conectar.";
+            errorLog.innerText = ""; 
         });
 
-        // EVENTO: Captura de errores si el servidor falla o hay bloqueos de red
+        // Captura activa de errores para diagnóstico en pantalla
         peer.on('error', (err) => {
-            console.error("Error en PeerJS:", err);
-            statusDisplay.innerText = "Error de conexión.";
-            errorLog.innerText = "Error: " + err.type + " - No se pudo conectar al servidor de señalización.";
-            myIdDisplay.innerText = "Error al generar";
+            console.error("Error detectado:", err);
+            statusDisplay.innerText = "Conexión interrumpida.";
+            myIdDisplay.innerText = "Error de Red";
+            errorLog.innerText = `Error [${err.type}]: No se pudo validar la sesión P2P.`;
         });
 
-        // ESCUCHAR: Conexiones entrantes
+        // Escuchar conexiones de archivos entrantes
         peer.on('connection', (connection) => {
             conn = connection;
             setupConnectionHandlers();
         });
 
-        // ENVIAR: Conectarse a otro ID externo
+        // Evento para iniciar el enlace y transferencia
         sendBtn.addEventListener('click', () => {
             const targetId = peerIdInput.value.trim();
             if (!targetId) {
-                alert("Por favor, introduce un ID válido.");
+                alert("Por favor, introduce el ID del destinatario.");
                 return;
             }
-            if (!fileInput.files[0]) {
-                alert("Por favor, selecciona un archivo antes de enviar.");
+            if (fileInput.files.length === 0) {
+                alert("Selecciona un archivo antes de enviarlo.");
                 return;
             }
             
-            statusDisplay.innerText = "Estableciendo conexión P2P...";
+            statusDisplay.innerText = "Abriendo túnel directo WebRTC...";
             conn = peer.connect(targetId);
             
             conn.on('open', () => {
                 setupConnectionHandlers();
-                // Damos un breve respiro de 500ms para asegurar que el canal de datos esté listo
-                setTimeout(enviarArchivo, 500);
+                setTimeout(enviarArchivo, 400);
             });
         });
 
         function setupConnectionHandlers() {
-            statusDisplay.innerText = `Conectado con: ${conn.peer}`;
+            statusDisplay.innerText = `Conectado con el par: ${conn.peer}`;
             
             conn.on('data', (data) => {
                 if (data.file && data.filename) {
-                    statusDisplay.innerText = `¡Archivo recibido!: ${data.filename}`;
+                    statusDisplay.innerText = `¡Archivo recibido con éxito!`;
                     
                     const blob = new Blob([data.file]);
                     const url = URL.createObjectURL(blob);
                     
                     downloadLink.href = url;
                     downloadLink.download = data.filename;
-                    downloadLink.innerText = `Descargar ${data.filename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
+                    downloadLink.innerText = `Guardar ${data.filename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
                     downloadLink.style.display = "inline-block";
                 }
             });
 
             conn.on('close', () => {
-                statusDisplay.innerText = "La conexión se ha cerrado.";
+                statusDisplay.innerText = "La conexión P2P se ha cerrado.";
                 conn = null;
             });
         }
 
         function enviarArchivo() {
             const file = fileInput.files[0];
-            statusDisplay.innerText = `Enviando "${file.name}"...`;
+            statusDisplay.innerText = `Transmitiendo "${file.name}" de forma directa...`;
 
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -136,9 +142,9 @@
                         file: event.target.result,
                         filename: file.name
                     });
-                    statusDisplay.innerText = `¡"${file.name}" enviado con éxito!`;
+                    statusDisplay.innerText = `¡"${file.name}" se envió correctamente!`;
                 } else {
-                    statusDisplay.innerText = "Error: La conexión se perdió antes de enviar.";
+                    statusDisplay.innerText = "Error: El canal se cerró antes del envío.";
                 }
             };
             reader.readAsArrayBuffer(file);
