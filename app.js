@@ -1,4 +1,3 @@
-
 let peer;
 let connectionEstablished = false;
 
