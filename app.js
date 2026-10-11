@@ -24,12 +24,12 @@ let receivedBytes = 0;
 let lastObjectUrl = null;
 
 function formatBytes(bytes) {
-  if (bytes < 1024) return ${bytes} B;
-  if (bytes < 1024 * 1024) return ${(bytes / 1024).toFixed(1)} KB;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) {
-    return ${(bytes / (1024 * 1024)).toFixed(1)} MB;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
-  return ${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function initializePeer() {
@@ -49,16 +49,18 @@ function initializePeer() {
     console.error(error);
 
     if (error.type === "peer-unavailable") {
-      statusElement.textContent = "No se encontró ese ID. Verifica que el receptor tenga la página abierta.";
+      statusElement.textContent =
+        "No se encontró ese ID. Verifica que el receptor tenga la página abierta.";
     } else if (error.type === "network") {
       statusElement.textContent = "Error de red. Revisa tu conexión.";
     } else {
-      statusElement.textContent = Error: ${error.type};
+      statusElement.textContent = `Error: ${error.type}`;
     }
   });
 
   peer.on("disconnected", () => {
-    statusElement.textContent = "Desconectado del servidor de señalización. Reintentando...";
+    statusElement.textContent =
+      "Desconectado del servidor de señalización. Reintentando...";
     peer.reconnect();
   });
 }
@@ -135,8 +137,7 @@ fileInput.addEventListener("change", () => {
     return;
   }
 
-  sendInfo.textContent =
-    ${selectedFile.name} — ${formatBytes(selectedFile.size)};
+  sendInfo.textContent = `${selectedFile.name} — ${formatBytes(selectedFile.size)}`;
 
   sendBtn.disabled = !connection || !connection.open;
   sendProgress.value = 0;
@@ -177,15 +178,13 @@ sendBtn.addEventListener("click", async () => {
       const percent = Math.round((offset / selectedFile.size) * 100);
       sendProgress.value = percent;
 
-      sendInfo.textContent =
-        Enviando ${selectedFile.name}: ${percent}% — ${formatBytes(offset)} de ${formatBytes(selectedFile.size)};
+      sendInfo.textContent = `Enviando ${selectedFile.name}: ${percent}% — ${formatBytes(offset)} de ${formatBytes(selectedFile.size)}`;
     }
 
     connection.send({ type: "file-end" });
 
     statusElement.textContent = "Archivo enviado correctamente.";
-    sendInfo.textContent =
-      ${selectedFile.name} — ${formatBytes(selectedFile.size)} enviado.;
+    sendInfo.textContent = `${selectedFile.name} — ${formatBytes(selectedFile.size)} enviado.`;
   } catch (error) {
     console.error(error);
     statusElement.textContent = "Error al enviar el archivo.";
@@ -204,8 +203,7 @@ function handleIncomingData(data) {
     const percent = Math.round((receivedBytes / incomingFile.size) * 100);
     receiveProgress.value = percent;
 
-    receiveInfo.textContent =
-      Recibiendo ${incomingFile.name}: ${percent}% — ${formatBytes(receivedBytes)} de ${formatBytes(incomingFile.size)};
+    receiveInfo.textContent = `Recibiendo ${incomingFile.name}: ${percent}% — ${formatBytes(receivedBytes)} de ${formatBytes(incomingFile.size)}`;
 
     return;
   }
@@ -224,8 +222,7 @@ function handleIncomingData(data) {
     downloadLink.removeAttribute("href");
     downloadLink.removeAttribute("download");
 
-    receiveInfo.textContent =
-      Preparando recepción de ${data.name} — ${formatBytes(data.size)};
+    receiveInfo.textContent = `Preparando recepción de ${data.name} — ${formatBytes(data.size)}`;
 
     return;
   }
@@ -243,11 +240,10 @@ function handleIncomingData(data) {
 
     downloadLink.href = lastObjectUrl;
     downloadLink.download = incomingFile.name;
-    downloadLink.textContent = Descargar ${incomingFile.name};
+    downloadLink.textContent = `Descargar ${incomingFile.name}`;
     downloadLink.classList.remove("hidden");
 
-    receiveInfo.textContent =
-      Archivo recibido: ${incomingFile.name} — ${formatBytes(incomingFile.size)};
+    receiveInfo.textContent = `Archivo recibido: ${incomingFile.name} — ${formatBytes(incomingFile.size)}`;
 
     incomingFile = null;
   }
