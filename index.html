@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compartir Archivos P2P Directo</title>
-    
-    <!-- SOLUCIÓN 1: Cambiamos a la última versión oficial y estable desde jsDelivr -->
+    <!-- Cargamos la librería estable -->
     <script src="https://jsdelivr.net"></script>
-    
     <style>
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; text-align: center; background-color: #f4f7f6; }
         .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
@@ -15,45 +13,57 @@
         button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #0056b3; }
         .status { font-weight: bold; color: #555; margin: 15px 0; }
-        #downloadLink { display: none; margin-top: 15px; font-weight: bold; color: #28a745; }
         .error-msg { color: #dc3545; font-weight: bold; margin-top: 10px; }
+        #downloadLink { display: none; margin-top: 15px; font-weight: bold; color: #28a745; }
+        .tip { font-size: 0.85em; color: #666; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <h1>Transferencia de Archivos P2P</h1>
+    <h1>Transferencia de Archivos P2P (Modo ID Controlado)</h1>
     
     <div class="box">
         <h3>1. Tu Identificador de Conexión</h3>
-        <p>Comparte este ID con la otra persona.</p>
-        <!-- Aquí se mostrará tu ID -->
-        <div id="my-id" style="font-size: 1.5em; color: #007bff; font-weight: bold;">Generando ID único...</div>
+        <p>Tu identificador actual en esta pestaña es:</p>
+        <div id="my-id" style="font-size: 1.6em; color: #28a745; font-weight: bold;">Registrando...</div>
         <div id="error-log" class="error-msg"></div>
+        <p class="tip">Tip: Agrega <b>?id=tu_nombre</b> al final de la URL en la barra del navegador para usar un ID fijo.</p>
     </div>
 
     <div class="box">
         <h3>2. Conectar y Enviar Archivo</h3>
-        <input type="text" id="peer-id-input" placeholder="Introduce el ID del destinatario">
+        <input type="text" id="peer-id-input" placeholder="Introduce el ID de la otra PC">
         <br>
         <input type="file" id="file-input">
         <br>
-        <button id="send-btn">Enviar Archivo</button>
+        <button id="send-btn">Enviar Archivo Directo</button>
     </div>
 
     <div class="box">
         <h3>Estado del Canal</h3>
-        <div id="status" class="status">Conectando al servidor de señales...</div>
+        <div id="status" class="status">Estableciendo comunicación de red...</div>
         <a id="downloadLink" href="#" download>¡Descargar Archivo Recibido!</a>
     </div>
 
     <script>
-        // SOLUCIÓN 2: Forzamos los parámetros de red correctos para el servidor público actual de PeerJS
-        const peer = new Peer({
-            host: '://peerjs.com',
-            port: 443,
-            path: '/',
-            secure: true,
-            debug: 1
+        // LEER URL: Buscamos si definiste un ID personalizado en la URL (ej. ?id=pedro)
+        const urlParams = new URLSearchParams(window.location.search);
+        let idFijo = urlParams.get('id'); 
+        
+        // Si no definiste un ID por URL, generamos uno aleatorio pero corto para evitar fallos
+        if (!idFijo) {
+            idFijo = 'user-' + Math.floor(1000 + Math.random() * 9000);
+        }
+
+        // CONFIGURACIÓN AVANZADA: Usamos un servidor STUN global de metered para saltar firewalls estrictos
+        const peer = new Peer(idFijo, {
+            config: {
+                'iceServers': [
+                    { url: 'stun:stun.metered.ca:443' },
+                    { url: 'stun:://google.com' }
+                ]
+            },
+            debug: 3 // Nivel de log máximo en la consola del desarrollador (F12)
         });
         
         let conn = null;
@@ -66,74 +76,76 @@
         const sendBtn = document.getElementById('send-btn');
         const downloadLink = document.getElementById('downloadLink');
 
-        // Asignación de ID exitosa
+        // Éxito al inicializar con el ID fijo
         peer.on('open', (id) => {
             myIdDisplay.innerText = id;
-            statusDisplay.innerText = "Listo. Comparte tu ID o introduce el de tu par para conectar.";
-            errorLog.innerText = ""; 
+            statusDisplay.innerText = "¡Conectado al servidor de señales! Listo para transferencias.";
+            errorLog.innerText = "";
         });
 
-        // Captura activa de errores para diagnóstico en pantalla
+        // Manejo y diagnóstico en pantalla si hay problemas
         peer.on('error', (err) => {
-            console.error("Error detectado:", err);
-            statusDisplay.innerText = "Conexión interrumpida.";
-            myIdDisplay.innerText = "Error de Red";
-            errorLog.innerText = `Error [${err.type}]: No se pudo validar la sesión P2P.`;
+            console.error("Detalle del error:", err);
+            statusDisplay.innerText = "Error detectado.";
+            if (err.type === 'unavailable-id') {
+                errorLog.innerText = `El ID "${idFijo}" ya está en uso. Cambia el parámetro ?id= de tu URL.`;
+            } else {
+                errorLog.innerText = `Error técnico: [${err.type}]. Intenta recargar la página.`;
+            }
         });
 
-        // Escuchar conexiones de archivos entrantes
+        // Escuchar conexiones entrantes de archivos
         peer.on('connection', (connection) => {
             conn = connection;
             setupConnectionHandlers();
         });
 
-        // Evento para iniciar el enlace y transferencia
+        // Intentar conectar con la otra máquina
         sendBtn.addEventListener('click', () => {
             const targetId = peerIdInput.value.trim();
             if (!targetId) {
-                alert("Por favor, introduce el ID del destinatario.");
+                alert("Introduce el ID fijo de la máquina destino.");
                 return;
             }
             if (fileInput.files.length === 0) {
-                alert("Selecciona un archivo antes de enviarlo.");
+                alert("Selecciona un archivo.");
                 return;
             }
             
-            statusDisplay.innerText = "Abriendo túnel directo WebRTC...";
+            statusDisplay.innerText = `Enlazando de forma segura con: ${targetId}...`;
             conn = peer.connect(targetId);
             
             conn.on('open', () => {
                 setupConnectionHandlers();
-                setTimeout(enviarArchivo, 400);
+                setTimeout(enviarArchivo, 300);
             });
         });
 
         function setupConnectionHandlers() {
-            statusDisplay.innerText = `Conectado con el par: ${conn.peer}`;
+            statusDisplay.innerText = `Canal P2P abierto con: ${conn.peer}`;
             
             conn.on('data', (data) => {
                 if (data.file && data.filename) {
-                    statusDisplay.innerText = `¡Archivo recibido con éxito!`;
-                    
+                    statusDisplay.innerText = "¡Archivo recibido!";
                     const blob = new Blob([data.file]);
                     const url = URL.createObjectURL(blob);
                     
                     downloadLink.href = url;
                     downloadLink.download = data.filename;
-                    downloadLink.innerText = `Guardar ${data.filename} (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
+                    downloadLink.innerText = `Descargar archivo recibido (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
                     downloadLink.style.display = "inline-block";
                 }
             });
 
             conn.on('close', () => {
-                statusDisplay.innerText = "La conexión P2P se ha cerrado.";
+                statusDisplay.innerText = "Conexión P2P finalizada.";
                 conn = null;
             });
         }
 
         function enviarArchivo() {
             const file = fileInput.files[0];
-            statusDisplay.innerText = `Transmitiendo "${file.name}" de forma directa...`;
+            statusDisplay.innerText = `Transmitiendo "${file.name}" punto a punto...`;
 
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -142,9 +154,9 @@
                         file: event.target.result,
                         filename: file.name
                     });
-                    statusDisplay.innerText = `¡"${file.name}" se envió correctamente!`;
+                    statusDisplay.innerText = "¡Envío completado exitosamente!";
                 } else {
-                    statusDisplay.innerText = "Error: El canal se cerró antes del envío.";
+                    statusDisplay.innerText = "Error: El canal se cerró antes de completar el envío.";
                 }
             };
             reader.readAsArrayBuffer(file);
