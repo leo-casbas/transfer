@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Transferencia P2P de archivos</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+      max-width: 680px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.15rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #fff;
+    }
+
+    button {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 16px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      background: #2563eb;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: #1d4ed8;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .id-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #myId {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #eef2ff;
+      border: 1px dashed #93c5fd;
+      border-radius: 8px;
+      padding: 8px 12px;
+      word-break: break-all;
+    }
+
+    #copyIdBtn {
+      margin-top: 0;
+      background: #6b7280;
+    }
+
+    #copyIdBtn:hover:not(:disabled) {
+      background: #4b5563;
+    }
+
+    #status {
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    progress {
+      width: 100%;
+      height: 18px;
+      margin-top: 12px;
+      accent-color: #2563eb;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    #downloadLink {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 16px;
+      background: #16a34a;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    #downloadLink:hover {
+      background: #15803d;
+    }
+
+    .note {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Transferencia P2P de archivos</h1>
+
+  <section class="card">
+    <h2>Tu ID de conexión</h2>
+
+    <div class="id-box">
+      <span id="myId">Conectando...</span>
+      <button id="copyIdBtn" disabled>Copiar</button>
+    </div>
+
+    <p class="note">
+      Comparte este ID únicamente con la persona que recibirá el archivo.
+      La transferencia se realiza directamente entre navegadores mediante WebRTC.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Conectarse a otro dispositivo</h2>
+
+    <label for="remoteId">ID del receptor</label>
+    <input
+      id="remoteId"
+      type="text"
+      placeholder="Pega aquí el ID mostrado en el otro dispositivo"
+      autocomplete="off"
+    />
+
+    <button id="connectBtn">Conectar</button>
+
+    <p id="status">Sin conexión.</p>
+  </section>
+
+  <section class="card">
+    <h2>Enviar archivo</h2>
+
+    <label for="fileInput">Selecciona un archivo</label>
+    <input id="fileInput" type="file" />
+
+    <button id="sendBtn" disabled>Enviar archivo</button>
+
+    <progress id="sendProgress" value="0" max="100"></progress>
+    <p id="sendInfo" class="note">Ningún archivo seleccionado.</p>
+  </section>
+
+  <section class="card">
+    <h2>Recibir archivo</h2>
+
+    <p id="receiveInfo">Esperando conexión y archivo...</p>
+
+    <progress id="receiveProgress" value="0" max="100"></progress>
+
+    <a id="downloadLink" class="hidden" href="#">Descargar archivo</a>
+  </section>
+
+  <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
